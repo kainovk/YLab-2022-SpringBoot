@@ -1,6 +1,5 @@
 package com.edu.ulab.app.entity;
 
-import lombok.Builder;
 import lombok.Data;
 
 import javax.persistence.Entity;

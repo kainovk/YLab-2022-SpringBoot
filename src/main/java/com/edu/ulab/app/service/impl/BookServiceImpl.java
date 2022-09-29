@@ -5,11 +5,10 @@ import com.edu.ulab.app.entity.BookEntity;
 import com.edu.ulab.app.exception.NotFoundException;
 import com.edu.ulab.app.mapper.BookMapper;
 import com.edu.ulab.app.service.BookService;
-import com.edu.ulab.app.storage.Storage;
-import com.edu.ulab.app.storage.repository.BookRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
+import com.edu.ulab.app.repository.BookRepository;
 
 import java.util.List;
 
@@ -18,14 +17,12 @@ import java.util.List;
 @RequiredArgsConstructor
 public class BookServiceImpl implements BookService {
 
-    private final Storage storage;
+    private final BookRepository bookRepository;
 
     private final BookMapper bookMapper;
 
     @Override
     public BookDto createBook(BookDto bookDto) {
-        BookRepository bookRepository = storage.getBookRepository();
-
         BookEntity bookEntity = bookMapper.bookDtoToBookEntity(bookDto);
         BookEntity savedBook = bookRepository.save(bookEntity);
         return bookMapper.bookEntityToBookDto(savedBook);
@@ -33,25 +30,25 @@ public class BookServiceImpl implements BookService {
 
     @Override
     public BookDto updateBook(BookDto bookDto) {
-        BookRepository bookRepository = storage.getBookRepository();
-
-        BookEntity foundBook = findBookById(bookDto.getId(), bookRepository);
-        BookEntity updatedBook = bookRepository.save(foundBook);
+        BookEntity foundBook = bookMapper.bookDtoToBookEntity(bookDto);
+        BookEntity updatedBook;
+        if (bookRepository.existsById(foundBook.getId())) {
+            updatedBook = bookRepository.save(foundBook);
+        } else {
+            log.info("Book not found by id: {}", bookDto.getId());
+            throw new NotFoundException("Book not found by id: " + bookDto.getId());
+        }
         return bookMapper.bookEntityToBookDto(updatedBook);
     }
 
     @Override
     public BookDto getBookById(Long id) {
-        BookRepository bookRepository = storage.getBookRepository();
-
-        BookEntity foundBook = findBookById(id, bookRepository);
+        BookEntity foundBook = findBookById(id);
         return bookMapper.bookEntityToBookDto(foundBook);
     }
 
     @Override
     public List<BookDto> getAllBooks() {
-        BookRepository bookRepository = storage.getBookRepository();
-
         return bookRepository.findAll()
                 .stream()
                 .map(bookMapper::bookEntityToBookDto)
@@ -60,14 +57,12 @@ public class BookServiceImpl implements BookService {
 
     @Override
     public void deleteBookById(Long id) {
-        BookRepository bookRepository = storage.getBookRepository();
-
         if (bookRepository.existsById(id)) {
             bookRepository.deleteById(id);
         }
     }
 
-    private BookEntity findBookById(Long id, BookRepository bookRepository) {
+    private BookEntity findBookById(Long id) {
         return bookRepository.findById(id).orElseThrow(
                 () -> new NotFoundException("Book with id " + id + " not found")
         );

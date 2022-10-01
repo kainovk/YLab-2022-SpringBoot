@@ -1,28 +1,46 @@
 package com.edu.ulab.app.entity;
 
-import lombok.Data;
-import org.hibernate.validator.constraints.Range;
+import lombok.Getter;
+import lombok.NoArgsConstructor;
+import lombok.Setter;
+import lombok.ToString;
 
+import javax.persistence.CascadeType;
+import javax.persistence.Column;
 import javax.persistence.Entity;
 import javax.persistence.GeneratedValue;
 import javax.persistence.GenerationType;
 import javax.persistence.Id;
+import javax.persistence.OneToMany;
 import javax.persistence.Table;
-import javax.validation.constraints.NotBlank;
-import javax.validation.constraints.NotNull;
+import java.util.Set;
 
-@Data
+@Getter
+@Setter
+@ToString
+@NoArgsConstructor
 @Entity
-@Table(name = "PERSON")
+@Table(name = "person", schema = "ulab_edu")
 public class UserEntity {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
-    @NotBlank
+
+    @Column(nullable = false)
     private String fullName;
-    @NotBlank
+
+    @Column(nullable = false)
     private String title;
-    @NotNull
-    @Range(min = 0, max = 125)
+
+    @Column(nullable = false)
     private int age;
+
+    @ToString.Exclude
+    @OneToMany(mappedBy = "userEntity", cascade = {
+            CascadeType.MERGE,
+            CascadeType.PERSIST,
+            CascadeType.DETACH,
+            CascadeType.REFRESH})
+    private Set<BookEntity> bookSet;
 }
+

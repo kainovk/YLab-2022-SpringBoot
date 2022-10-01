@@ -2,18 +2,27 @@ package com.edu.ulab.app.service;
 
 import com.edu.ulab.app.dto.UserDto;
 import com.edu.ulab.app.entity.UserEntity;
+import com.edu.ulab.app.exception.NotFoundException;
 import com.edu.ulab.app.mapper.UserMapper;
 import com.edu.ulab.app.repository.UserRepository;
 import com.edu.ulab.app.service.impl.UserServiceImpl;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.ArgumentCaptor;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.context.junit.jupiter.SpringExtension;
 
-import static org.junit.jupiter.api.Assertions.assertEquals;
+import java.util.Optional;
+
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyLong;
+import static org.mockito.Mockito.times;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 /**
@@ -34,56 +43,107 @@ class UserServiceImplTest {
     UserMapper userMapper;
 
     @Test
-    @DisplayName("Создание пользователя. Должно пройти успешно.")
-    void savePerson_Test() {
-        //given
+    @DisplayName("Создание юзера. Должно активировать репозиторий")
+    void saveUser_shouldTriggerRepository() {
+        // given
+        UserDto userDto = prepareValidUserDto();
+        UserEntity userEntity = prepareValidUserEntity();
 
-        UserDto userDto = new UserDto();
-        userDto.setAge(11);
-        userDto.setFullName("test name");
-        userDto.setTitle("test title");
+        // when
+        when(userMapper.userDtoToUserEntity(any())).thenReturn(userEntity);
+        userService.createUser(userDto);
 
-        UserEntity person  = new UserEntity();
-        person.setFullName("test name");
-        person.setAge(11);
-        person.setTitle("test title");
+        // then
+        ArgumentCaptor<UserEntity> captor = ArgumentCaptor.forClass(UserEntity.class);
+        verify(userRepository).save(captor.capture());
 
-        UserEntity savedPerson  = new UserEntity();
-        savedPerson.setId(1L);
-        savedPerson.setFullName("test name");
-        savedPerson.setAge(11);
-        savedPerson.setTitle("test title");
-
-        UserDto result = new UserDto();
-        result.setId(1L);
-        result.setAge(11);
-        result.setFullName("test name");
-        result.setTitle("test title");
-
-
-        //when
-
-        when(userMapper.userDtoToUserEntity(userDto)).thenReturn(person);
-        when(userRepository.save(person)).thenReturn(savedPerson);
-        when(userMapper.userEntityToUserDto(savedPerson)).thenReturn(result);
-
-
-        //then
-
-        UserDto userDtoResult = userService.createUser(userDto);
-        assertEquals(1L, userDtoResult.getId());
+        assertThat(captor.getValue()).isEqualTo(userMapper.userDtoToUserEntity(userDto));
     }
 
-    // update
-    // get
-    // get all
-    // delete
+    @Test
+    @DisplayName("Обновление юзера. Должно активировать репозиторий")
+    void updateUser_shouldTriggerRepository() {
+        // given
+        long id = 1;
+        UserEntity userEntity = prepareValidUserEntity();
+        userEntity.setId(id);
 
-    // * failed
-    //         doThrow(dataInvalidException).when(testRepository)
-    //                .save(same(test));
-    // example failed
-    //  assertThatThrownBy(() -> testService.createTest(testRequest))
-    //                .isInstanceOf(DataInvalidException.class)
-    //                .hasMessage("Invalid data set");
+        UserDto userDto = prepareValidUserDto();
+
+        // when
+        when(userRepository.findById(id)).thenReturn(Optional.of(userEntity));
+        when(userRepository.existsById(anyLong())).thenReturn(true);
+        when(userMapper.userDtoToUserEntity(any())).thenReturn(userEntity);
+        when(userMapper.userEntityToUserDto(any())).thenReturn(userDto);
+        userService.updateUser(userMapper.userEntityToUserDto(userEntity));
+
+        // then
+        ArgumentCaptor<UserEntity> captor = ArgumentCaptor.forClass(UserEntity.class);
+        verify(userRepository, times(1)).save(captor.capture());
+        assertThat(captor.getValue()).isEqualTo(userEntity);
+    }
+
+    @Test
+    @DisplayName("Получение юзера. Должно активировать репозиторий")
+    void getUser_shouldTriggerRepository() {
+        // given
+        long id = 1L;
+        UserEntity userEntity = prepareValidUserEntity();
+        userEntity.setId(id);
+
+        // when
+        when(userRepository.findById(id)).thenReturn(Optional.of(userEntity));
+        UserDto foundUserDto = userService.getUserById(id);
+
+        // then
+        verify(userRepository).findById(id);
+        assertThat(foundUserDto).isEqualTo(userMapper.userEntityToUserDto(userEntity));
+    }
+
+    @Test
+    void deleteUserById_shouldTriggerRepository() {
+        // given
+        long id = 1L;
+        UserEntity userEntity = prepareValidUserEntity();
+        userEntity.setId(id);
+        userRepository.save(userEntity);
+
+        // when
+        when(userRepository.existsById(id)).thenReturn(true);
+        userService.deleteUserById(id);
+
+        // then
+        verify(userRepository).deleteById(id);
+    }
+
+    @Test
+    @DisplayName("Поиск юзера по несуществующему id. Должно выдать исключение")
+    void findUserById_ShouldThrowOnNonExistingId() {
+        // given
+        long id = 1;
+
+        // when
+        // then
+        assertThatThrownBy(() -> userService.getUserById(id))
+                .isInstanceOf(NotFoundException.class)
+                .hasMessage("User with id %d not found", id);
+    }
+
+    private UserEntity prepareValidUserEntity() {
+        UserEntity user = new UserEntity();
+        user.setId(1L);
+        user.setAge(111);
+        user.setTitle("reader");
+        user.setFullName("Test Test");
+        return user;
+    }
+
+    private UserDto prepareValidUserDto() {
+        return UserDto.builder()
+                .id(1L)
+                .fullName("Kirill")
+                .title("some title")
+                .age(50)
+                .build();
+    }
 }

@@ -4,7 +4,6 @@ import com.edu.ulab.app.config.SystemJpaTest;
 import com.edu.ulab.app.entity.BookEntity;
 import com.edu.ulab.app.entity.UserEntity;
 import com.vladmihalcea.sql.SQLStatementCountValidator;
-import org.jetbrains.annotations.NotNull;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
